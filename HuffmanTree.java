@@ -1,158 +1,190 @@
-import java.io.PrintStream;
-import java.util.Scanner;
+//Henton Hailey-Marshall
+//CSE 143 AA with Ido Avnon
+//Homework A8: Huffman
+import java.io.*;
+import java.util.*;
 
+//This is an encoder class. It reads in a text file. Analyzes the quantity of characters to
+//organize them by the frequency of their occurence  and then efficiently codes them according
+//to their frequency. Allowing parties with the code to encrypt and decrypt messages.
 public class HuffmanTree {
     private Node root;
 
-    /**
-     * Constructs a HuffmanTree based on the codes from a Scanner input.
-     * Each line in the input contains a character code followed by its Huffman encoding.
-     *
-     * @param input the Scanner containing character codes and encodings.
-     */
-    public HuffmanTree(Scanner input) {
-        root = new Node(0, null, null);
-        while (input.hasNextLine()) {
-            int character = Integer.parseInt(input.nextLine());
-            String code = input.nextLine();
-            addCode(root, character, code);
+    //Class Constructor
+    //This is the method that will construct your initial Huffman tree using the given array of 
+    //frequencies where count[i] is the number of occurrences of the character with integer value 
+    //i.
+    //Parameters:
+    //  -   Int[] Count: frequency of character occurrence
+    //Exceptions: NA
+    //Returns: Constructor NA
+    public HuffmanTree(int[] count) {
+        PriorityQueue<Node> pq = new PriorityQueue<>();
+
+        for (int i = 0; i < count.length; i++) {
+            if (count[i] > 0) {
+                pq.add(new Node(i, count[i], null, null));
+            }
+        }
+
+        while (pq.size() > 1) {
+            Node left = pq.remove();
+            Node right = pq.remove();
+            pq.add(new Node(-1, left.count + right.count, left, right));
+        }
+
+        if (pq.isEmpty()) {
+            root = null;
+        } else {
+            root = pq.remove();
         }
     }
 
-    /**
-     * Decodes the input bits and writes the corresponding characters to the output.
-     *
-     * @param input the BitInputStream containing encoded bits.
-     * @param output the PrintStream to write the decoded characters.
-     * @param eof the end-of-file marker character.
-     */
-    public void decode(BitInputStream input, PrintStream output, int eof) {
-        Node current = root;
-        int bit;
+    //Constructor
+    //Parameters:
+    //  Scanner Input: text file of code
+    //Exceptions: NA
+    //Returns: Constructor NA
+    public HuffmanTree(Scanner input) {
+        root = new Node(-1, 0, null, null);
+        while (input.hasNextLine()) {
+            int character = Integer.parseInt(input.nextLine());
+            String code = input.nextLine();
+            addCode(character, code);
+        }
+    }
 
-        while ((bit = input.readBit()) != -1) {
+
+    //Post: Decode file in coded format
+    //Parameters:
+    //  BitInputStream input: bits encoded
+    //  PrintStream output: object to write characters
+    //  int eof: marks where file ends
+    //Exceptions: NA
+    //Returns:
+    //  false: if decoded
+    //  true: not decoded
+    public boolean decode(BitInputStream input, PrintStream output, int eof) {
+        Node current = root;
+        while (true) {
+            int bit = input.readBit();
+            if (bit == -1) {
+                return false;
+            }
+
             if (bit == 0) {
                 current = current.left;
             } else {
                 current = current.right;
             }
 
-            if (current.left == null && current.right == null) { // Leaf node
+            if (current.left == null && current.right == null) {
                 if (current.data == eof) {
-                    return; // Stop decoding at EOF
+                    return true;
                 }
                 output.write(current.data);
-                current = root; // Reset to start decoding the next character
+                current = root;
             }
         }
     }
 
-    /**
-     * Writes the character codes and their encodings to the output in preorder traversal.
-     *
-     * @param output the PrintStream to write the character codes and encodings.
-     */
-    public void write(PrintStream output) {
-        write(root, "", output);
+
+    //Writes code based off of encodings
+    //Parameters:
+    //  PrintStream output: object to write code
+    //Exceptions: NA
+    //Returns: Public/Private call pair writing code
+    public boolean write(PrintStream output) {
+        return write(root, "", output);
     }
 
-    /**
-     * Constructs a HuffmanTree based on character frequencies.
-     * The character frequencies are provided as an array where the index represents the character.
-     *
-     * @param frequencies an array containing the frequencies of characters.
-     */
-    public HuffmanTree(int[] frequencies) {
-        root = buildTree(frequencies);
-    }
 
-    // Helper method to build the Huffman tree based on character frequencies
-    private Node buildTree(int[] frequencies) {
-        Node[] nodes = new Node[frequencies.length];
-        int size = 0;
-
-        for (int i = 0; i < frequencies.length; i++) {
-            if (frequencies[i] > 0) {
-                nodes[size++] = new Node(i, frequencies[i], null, null);
-            }
-        }
-
-        while (size > 1) {
-            Node min1 = removeMin(nodes, size);
-            size--;
-            Node min2 = removeMin(nodes, size);
-            size--;
-
-            Node combined = new Node(0, min1.frequency + min2.frequency, min1, min2);
-            nodes[size++] = combined;
-        }
-
-        return nodes[0];
-    }
-
-    // Helper method to remove and return the minimum node from an array of nodes
-    private Node removeMin(Node[] nodes, int size) {
-        int minIndex = 0;
-        for (int i = 1; i < size; i++) {
-            if (nodes[i].frequency < nodes[minIndex].frequency) {
-                minIndex = i;
-            }
-        }
-        Node min = nodes[minIndex];
-        nodes[minIndex] = nodes[size - 1];
-        return min;
-    }
-
-    // Recursive helper to write character codes and their encodings
-    private void write(Node node, String path, PrintStream output) {
-        if (node.left == null && node.right == null) { // Leaf node
+    //Post: Writes code of tree
+    //Parameters:
+    // NOde node: node being encoded/decoded
+    // string text: text coded so far
+    // printstream: object to write code
+    //Exceptions: na
+    //Returns: true if encoded/decoded
+    private boolean write(Node node, String text, PrintStream output) {
+        if (node.left == null && node.right == null) {
             output.println(node.data);
-            output.println(path);
-        } else {
-            if (node.left != null) {
-                write(node.left, path + "0", output);
-            }
-            if (node.right != null) {
-                write(node.right, path + "1", output);
-            }
+            output.println(text);
+            return true;
         }
+        boolean leftText = true;
+        if (node.left != null) {
+            leftText = write(node.left, text + "0", output);
+        }
+        boolean rightText = true;
+        if (node.right != null) {
+            rightText = write(node.right, text + "1", output);
+        }
+        return leftText && rightText;
     }
 
-    // Helper method to add a character code to the Huffman tree
-    private void addCode(Node node, int character, String code) {
+
+    //Adds letrer and code to tree
+    //Parameters:
+    // int letter: character added
+    //string code: code corresponding to letter
+    //Exceptions: na
+    //Returns: true if added
+    private boolean addCode(int letter, String code) {
+        Node current = root;
         for (int i = 0; i < code.length(); i++) {
-            char c = code.charAt(i);
-            if (c == '0') {
-                if (node.left == null) {
-                    node.left = new Node(0, null, null);
+            char character = code.charAt(i);
+            if (character == '0') {
+                if (current.left == null) {
+                    current.left = new Node(-1, 0, null, null);
                 }
-                node = node.left;
-            } else { // '1'
-                if (node.right == null) {
-                    node.right = new Node(0, null, null);
+                current = current.left;
+            } else if (character == '1') {
+                if (current.right == null) {
+                    current.right = new Node(-1, 0, null, null);
                 }
-                node = node.right;
+                current = current.right;
             }
         }
-        node.data = character;
+        current.data = letter;
+        return true;
     }
 
-    // Node class for the Huffman tree
-    private static class Node {
+    //Post: Comparable interface for ordering by frequency
+    //Parameters: NA
+    //Exceptions: NA
+    //Returns: NA
+    private static class Node implements Comparable<Node>{
         public int data;
-        public int frequency;
+        public int count;
         public Node left;
         public Node right;
 
-        public Node(int data, int frequency, Node left, Node right) {
+        //Node class 
+        //Parameters:
+        //int data: character vale
+        //int count: letter frequency
+        //node left: left child node
+        //node right: right child node
+        //Exceptions:
+        //Returns:
+        public Node(int data, int count, Node left, Node right) {
             this.data = data;
-            this.frequency = frequency;
+            this.count = count;
             this.left = left;
             this.right = right;
         }
 
-        public Node(int data, Node left, Node right) {
-            this(data, 0, left, right);
+        //Post: compares node to other node
+        //Parameters:
+        //Node other: the node being compared to
+        //Exceptions: NA
+        //Returns: 
+        //negative value if this node less than other node
+        //positive value is this node greater than other node
+        //0 if equal
+        public int compareTo(Node other) {
+            return this.count - other.count;
         }
     }
 }
